@@ -12,20 +12,52 @@ import PhotosUI
 enum EngineError: Error {
     case loading
     case extracting
+    case filtering
+    case rendering
 }
 
 class SimpleAudioEngine: ObservableObject {
     private let engine = AVAudioEngine()
     private let speedControl = AVAudioUnitVarispeed()
     private let pitchControl = AVAudioUnitTimePitch()
-    private let mixer = AVAudioMixerNode()
 
-    lazy var tempDir = FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask)[0]
+    private let audioPlayer = AVAudioPlayerNode()
 
-    var outref: ExtAudioFileRef?
+    @Published
+    var avAsset: AVURLAsset?
 
-    func requestAVAsset(for asset: PHAsset) async throws -> AVAsset {
-        try await withCheckedThrowingContinuation { promise in
+    var audioURL: URL?
+
+    private lazy var tempDir = FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask)[0]
+
+    private var outref: ExtAudioFileRef?
+
+    init() {
+        engine.attach(audioPlayer)
+        engine.attach(speedControl)
+        engine.attach(pitchControl)
+
+        engine.connect(audioPlayer, to: speedControl, format: nil)
+        engine.connect(speedControl, to: pitchControl, format: nil)
+        engine.connect(pitchControl, to: engine.mainMixerNode, format: nil)
+    }
+
+    func saveFilter1Sound() async throws -> URL {
+        guard let audioURL else { throw EngineError.filtering }
+        pitchControl.pitch = 1000
+        speedControl.rate = 1.1
+        return try saveSound(from: audioURL)
+    }
+
+    func saveFilter2Sound() async throws -> URL {
+        guard let audioURL else { throw EngineError.filtering }
+        pitchControl.pitch = 100
+        speedControl.rate = 0.9
+        return try saveSound(from: audioURL)
+    }
+
+    func requestAVAsset(for asset: PHAsset) async throws {
+        let asset = try await withCheckedThrowingContinuation { promise in
             PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { avAsset, _, _ in
                 if let avAsset {
                     promise.resume(returning: avAsset)
@@ -34,9 +66,13 @@ class SimpleAudioEngine: ObservableObject {
                 }
             }
         }
+        
+        await MainActor.run {
+            self.avAsset = asset as? AVURLAsset
+        }
     }
 
-    func extractAudio(from asset: AVAsset) async throws -> URL {
+    func extractAudio(from asset: AVAsset) async throws {
         // Create a composition
         let composition = AVMutableComposition()
         do {
@@ -69,69 +105,23 @@ class SimpleAudioEngine: ObservableObject {
         await exportSession.export()
         //guard case exportSession.status = AVAssetExportSession.Status.completed else { return nil }
 
-        return outputUrl
+        self.audioURL = outputUrl
     }
 
-    func saveSound(from url: URL) throws -> URL {
+    private func saveSound(from url: URL) throws -> URL {
+        engine.reset()
         let file = try AVAudioFile(forReading: url)
 
-        let audioPlayer = AVAudioPlayerNode()
-
-//        print(eqControl.bands[0].frequency)
-//        eqControl.bands[0].filterType = .bandPass
-//        eqControl.bands[0].frequency = 1000
-//        //eqControl.bands[0].bandwidth = 5
-//        //eqControl.bands[0].gain = 0
-//        eqControl.bands[0].bypass = false
-//        print(eqControl.bands[0].frequency)
-
-//        eqControl.loadFactoryPreset(.plate)
-//        eqControl.wetDryMix = 0.1
-
-        pitchControl.pitch += 500
-        speedControl.rate = 1.1
-
-        engine.attach(audioPlayer)
-        engine.attach(speedControl)
-        engine.attach(pitchControl)
-        engine.attach(mixer)
-
-        let maxFrames: AVAudioFrameCount = 4096
-
-//        let format = AVAudioFormat(commonFormat: AVAudioCommonFormat.pcmFormatInt16,
-//                                   sampleRate: 44100.0,
-//                                   channels: 1,
-//                                   interleaved: true)!
-
-        engine.connect(audioPlayer, to: speedControl, format: nil)
-        engine.connect(speedControl, to: pitchControl, format: nil)
-        engine.connect(pitchControl, to: mixer, format: nil)
-        engine.connect(mixer, to: engine.mainMixerNode, format: nil)
-
-        audioPlayer.scheduleFile(file, at: nil)
+        audioPlayer.scheduleFile(file, at: nil, completionHandler: nil)
 
         let filteredAudioFilePath = tempDir.appending(path: "filteredAudio.m4a")
-//        let status = ExtAudioFileCreateWithURL(URL(fileURLWithPath: filteredAudioFilePath.path()) as CFURL,
-//                                      kAudioFileM4AType,
-//                                      file.fileFormat.streamDescription,
-//                                      nil,
-//                                      AudioFileFlags.eraseFile.rawValue,
-//                                      &outref)
-//        print(status)
+        if FileManager.default.fileExists(atPath: filteredAudioFilePath.path) {
+            try FileManager.default.removeItem(atPath: filteredAudioFilePath.path)
+        }
 
+        let maxFrames: AVAudioFrameCount = 4096
         try engine.enableManualRenderingMode(.offline, format: file.processingFormat,
                                              maximumFrameCount: maxFrames)
-
-//        self.mixer.installTap(onBus: 0, bufferSize: AVAudioFrameCount(file.fileFormat.sampleRate * 0.4),
-//                              format: nil, block: { (buffer: AVAudioPCMBuffer!, time: AVAudioTime!) -> Void in
-//
-//            //Audio Recording Buffer
-//            let audioBuffer : AVAudioBuffer = buffer
-//
-//            //Write Buffer to File
-//            _ = ExtAudioFileWrite(self.outref!, buffer.frameLength, audioBuffer.audioBufferList)
-//            print(filteredAudioFilePath)
-//        })
 
         try engine.start()
         audioPlayer.play()
@@ -143,7 +133,8 @@ class SimpleAudioEngine: ObservableObject {
         do {
             outputFile = try AVAudioFile(forWriting: filteredAudioFilePath, settings: file.fileFormat.settings)
         } catch {
-            fatalError("Unable to open output audio file: \(error).")
+            print("Unable to open output audio file: \(error).")
+            throw EngineError.rendering
         }
 
         while engine.manualRenderingSampleTime < file.length {
@@ -154,26 +145,24 @@ class SimpleAudioEngine: ObservableObject {
                 let status = try engine.renderOffline(framesToRender, to: buffer)
 
                 switch status {
-
                 case .success:
                     // The data rendered successfully. Write it to the output file.
                     try outputFile.write(from: buffer)
-
                 case .insufficientDataFromInputNode:
                     // Applicable only when using the input node as one of the sources.
                     break
-
                 case .cannotDoInCurrentContext:
                     // The engine couldn't render in the current render call.
                     // Retry in the next iteration.
                     break
-
-                case .error:
+                default:
                     // An error occurred while rendering the audio.
-                    fatalError("The manual rendering failed.")
+                    print("The manual rendering failed.")
+                    throw EngineError.rendering
                 }
             } catch {
-                fatalError("The manual rendering failed: \(error).")
+                print("The manual rendering failed: \(error).")
+                throw EngineError.rendering
             }
         }
 
@@ -184,7 +173,7 @@ class SimpleAudioEngine: ObservableObject {
         return filteredAudioFilePath
     }
 
-    func replaceAudioFromVideo(_ videoURL: URL, with audio: AVAsset) async throws -> URL {
+    func replaceAudioFromVideo(_ videoURL: URL, with audio: AVAsset) async throws {
         let inputVideoURL: URL = videoURL
         let sourceAsset = AVURLAsset(url: inputVideoURL)
         let sourceVideoTrack = try await sourceAsset.loadTracks(withMediaType: AVMediaType.video)[0]
@@ -210,6 +199,8 @@ class SimpleAudioEngine: ObservableObject {
 
         await exporter.export()
 
-        return mutableVideoURL
+        await MainActor.run {
+            self.avAsset = AVURLAsset(url: mutableVideoURL)
+        }
     }
 }

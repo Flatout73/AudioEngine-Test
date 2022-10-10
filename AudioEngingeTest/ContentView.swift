@@ -16,12 +16,9 @@ struct ContentView: View {
     @State
     private var selectedItem: PhotosPickerItem? = nil
 
-    @State
-    private var avAsset: AVAsset?
-
     var body: some View {
-        VStack {
-            if let avAsset {
+        VStack(spacing: 32) {
+            if let avAsset = engine.avAsset {
                 VideoPlayer(player: AVPlayer(playerItem: AVPlayerItem(asset: avAsset)))
                     .frame(height: 400)
             }
@@ -33,40 +30,47 @@ struct ContentView: View {
                     Text("Select a video")
                 }
 
-            if let urlAsset = avAsset as? AVURLAsset {
-                Button("Filter") {
-                    Task {
-                        let audioURL = try await engine.extractAudio(from: urlAsset)
-                        let filteredAudio = try engine.saveSound(from: audioURL)
-
-                        let newVideoURL = try await engine.replaceAudioFromVideo(urlAsset.url,
-                                                                                 with: AVURLAsset(url: filteredAudio))
-                        avAsset = AVURLAsset(url: newVideoURL)
+            if let urlAsset = engine.avAsset as? AVURLAsset {
+                VStack(spacing: 16) {
+                    Button("Filter 1") {
+                        Task {
+                            let filteredAudio = try await engine.saveFilter1Sound()
+                            try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                   with: AVURLAsset(url: filteredAudio))
+                        }
+                    }
+                    Button("Filter 2") {
+                        Task {
+                            let filteredAudio = try await engine.saveFilter2Sound()
+                            try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                   with: AVURLAsset(url: filteredAudio))
+                        }
                     }
                 }
             }
         }
         .onChange(of: selectedItem) { newItem in
             Task {
-                // Retrive selected asset in the form of Data
-
-                if let localID = newItem?.itemIdentifier,
-                   let result = PHAsset.fetchAssets(withLocalIdentifiers: [localID], options: nil).firstObject {
-                    avAsset = try await engine.requestAVAsset(for: result)
+                guard let localID = newItem?.itemIdentifier,
+                      let result = PHAsset.fetchAssets(withLocalIdentifiers: [localID], options: nil).firstObject
+                else { return }
+                try await engine.requestAVAsset(for: result)
+                if let asset = engine.avAsset {
+                    try await engine.extractAudio(from: asset)
                 }
             }
         }
         .onAppear {
             do {
                 let audioSession = AVAudioSession.sharedInstance()
-                try audioSession.setCategory(.playAndRecord, options: .defaultToSpeaker)
-                try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+                try audioSession.setCategory(.playback, mode: .default)
+                try audioSession.setActive(true)
             } catch {
                 print(error)
             }
         }
         .toolbar {
-            if let urlAsset = avAsset as? AVURLAsset {
+            if let urlAsset = engine.avAsset as? AVURLAsset {
                 ToolbarItem(placement: .primaryAction) {
                     ShareLink(item: urlAsset.url)
                 }
