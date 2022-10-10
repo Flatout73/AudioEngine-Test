@@ -56,6 +56,13 @@ class SimpleAudioEngine: ObservableObject {
         return try saveSound(from: audioURL)
     }
 
+    func saveFilter3Sound() async throws -> URL {
+        guard let audioURL else { throw EngineError.filtering }
+        pitchControl.pitch = -1000
+        speedControl.rate = 1.0
+        return try saveSound(from: audioURL)
+    }
+
     func requestAVAsset(for asset: PHAsset) async throws {
         let asset = try await withCheckedThrowingContinuation { promise in
             PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { avAsset, _, _ in
@@ -182,7 +189,7 @@ class SimpleAudioEngine: ObservableObject {
         let composition = AVMutableComposition()
         let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video,
                                                                 preferredTrackID: kCMPersistentTrackID_Invalid)
-        let x: CMTimeRange = CMTimeRangeMake(start: CMTime.zero, duration: sourceAsset.duration)
+        let x: CMTimeRange = try await CMTimeRangeMake(start: CMTime.zero, duration: sourceAsset.load(.duration))
         _ = try compositionVideoTrack?.insertTimeRange(x, of: sourceVideoTrack, at: CMTime.zero)
 
         let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)

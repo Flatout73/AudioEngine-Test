@@ -16,40 +16,73 @@ struct ContentView: View {
     @State
     private var selectedItem: PhotosPickerItem? = nil
 
-    var body: some View {
-        VStack(spacing: 32) {
-            if let avAsset = engine.avAsset {
-                VideoPlayer(player: AVPlayer(playerItem: AVPlayerItem(asset: avAsset)))
-                    .frame(height: 400)
+    @State
+    private var isLoading = false
+
+    @ViewBuilder
+    var main: some View {
+        ZStack {
+            VStack(spacing: 32) {
+                if let avAsset = engine.avAsset {
+                    VideoPlayer(player: AVPlayer(playerItem: AVPlayerItem(asset: avAsset)))
+                        .frame(height: 400)
+                }
+
+                PhotosPicker(
+                    selection: $selectedItem,
+                    matching: .videos,
+                    photoLibrary: .shared()) {
+                        Text("Select a video")
+                    }
+
+                if let urlAsset = engine.avAsset {
+                    VStack(spacing: 16) {
+                        Button("Child filter") {
+                            isLoading = true
+                            Task {
+                                let filteredAudio = try await engine.saveFilter1Sound()
+                                try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                       with: AVURLAsset(url: filteredAudio))
+                                await MainActor.run {
+                                    isLoading = false
+                                }
+                            }
+                        }
+                        Button("Man filter") {
+                            isLoading = true
+                            Task {
+                                let filteredAudio = try await engine.saveFilter2Sound()
+                                try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                       with: AVURLAsset(url: filteredAudio))
+                                await MainActor.run {
+                                    isLoading = false
+                                }
+                            }
+                        }
+                        Button("Alien filter") {
+                            isLoading = true
+                            Task {
+                                let filteredAudio = try await engine.saveFilter3Sound()
+                                try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                       with: AVURLAsset(url: filteredAudio))
+                                await MainActor.run {
+                                    isLoading = false
+                                }
+                            }
+                        }
+                    }
+                }
             }
-
-            PhotosPicker(
-                selection: $selectedItem,
-                matching: .videos,
-                photoLibrary: .shared()) {
-                    Text("Select a video")
-                }
-
-            if let urlAsset = engine.avAsset as? AVURLAsset {
-                VStack(spacing: 16) {
-                    Button("Filter 1") {
-                        Task {
-                            let filteredAudio = try await engine.saveFilter1Sound()
-                            try await engine.replaceAudioFromVideo(urlAsset.url,
-                                                                   with: AVURLAsset(url: filteredAudio))
-                        }
-                    }
-                    Button("Filter 2") {
-                        Task {
-                            let filteredAudio = try await engine.saveFilter2Sound()
-                            try await engine.replaceAudioFromVideo(urlAsset.url,
-                                                                   with: AVURLAsset(url: filteredAudio))
-                        }
-                    }
-                }
+            if isLoading {
+                ProgressView()
             }
         }
+    }
+
+    var body: some View {
+        main
         .onChange(of: selectedItem) { newItem in
+            isLoading = true
             Task {
                 guard let localID = newItem?.itemIdentifier,
                       let result = PHAsset.fetchAssets(withLocalIdentifiers: [localID], options: nil).firstObject
@@ -57,6 +90,9 @@ struct ContentView: View {
                 try await engine.requestAVAsset(for: result)
                 if let asset = engine.avAsset {
                     try await engine.extractAudio(from: asset)
+                }
+                await MainActor.run {
+                    isLoading = false
                 }
             }
         }
@@ -70,7 +106,7 @@ struct ContentView: View {
             }
         }
         .toolbar {
-            if let urlAsset = engine.avAsset as? AVURLAsset {
+            if let urlAsset = engine.avAsset {
                 ToolbarItem(placement: .primaryAction) {
                     ShareLink(item: urlAsset.url)
                 }
