@@ -3,7 +3,8 @@
 Test project for replacing audio from video with audio with filters.
 
 "Select a video" for selecting video from gallery. One sample video is prefilled in Debug.
-Other buttons for different voice filters.
+
+Other buttons are for different voice filters.
 
 ### Links
 
