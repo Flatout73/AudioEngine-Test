@@ -33,8 +33,17 @@ struct ContentView: View {
                     Text("Select a video")
                 }
 
-            Button("play") {
-                try! engine.play(url: Bundle.main.url(forResource: "Voice", withExtension: "m4a")!)
+            if let urlAsset = avAsset as? AVURLAsset {
+                Button("Filter") {
+                    Task {
+                        let audioURL = try await engine.extractAudio(from: urlAsset)
+                        let filteredAudio = try engine.saveSound(from: audioURL)
+
+                        let newVideoURL = try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                                 with: AVURLAsset(url: filteredAudio))
+                        avAsset = AVURLAsset(url: newVideoURL)
+                    }
+                }
             }
         }
         .onChange(of: selectedItem) { newItem in
@@ -44,13 +53,26 @@ struct ContentView: View {
                 if let localID = newItem?.itemIdentifier,
                    let result = PHAsset.fetchAssets(withLocalIdentifiers: [localID], options: nil).firstObject {
                     avAsset = try await engine.requestAVAsset(for: result)
-                    let audioURL = try await engine.extractAudio(from: avAsset!)
-
-                    try engine.play(url: audioURL!)
-
                 }
             }
         }
+        .onAppear {
+            do {
+                let audioSession = AVAudioSession.sharedInstance()
+                try audioSession.setCategory(.playAndRecord, options: .defaultToSpeaker)
+                try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            } catch {
+                print(error)
+            }
+        }
+        .toolbar {
+            if let urlAsset = avAsset as? AVURLAsset {
+                ToolbarItem(placement: .primaryAction) {
+                    ShareLink(item: urlAsset.url)
+                }
+            }
+        }
+        .navigationTitle("Video filters")
     }
 }
 
