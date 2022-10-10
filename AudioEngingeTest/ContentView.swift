@@ -12,13 +12,13 @@ import AVKit
 struct ContentView: View {
     @StateObject
     var engine = SimpleAudioEngine()
-
+    
     @State
     private var selectedItem: PhotosPickerItem? = nil
-
+    
     @State
     private var isLoading = false
-
+    
     @ViewBuilder
     var main: some View {
         ZStack {
@@ -80,41 +80,41 @@ struct ContentView: View {
             }
         }
     }
-
+    
     var body: some View {
         main
-        .onChange(of: selectedItem) { newItem in
-            isLoading = true
-            Task {
-                guard let localID = newItem?.itemIdentifier,
-                      let result = PHAsset.fetchAssets(withLocalIdentifiers: [localID], options: nil).firstObject
-                else { return }
-                try await engine.requestAVAsset(for: result)
-                if let asset = engine.avAsset {
-                    try await engine.extractAudio(from: asset)
-                }
-                await MainActor.run {
-                    isLoading = false
-                }
-            }
-        }
-        .onAppear {
-            do {
-                let audioSession = AVAudioSession.sharedInstance()
-                try audioSession.setCategory(.playback, mode: .default)
-                try audioSession.setActive(true)
-            } catch {
-                print(error)
-            }
-        }
-        .toolbar {
-            if let urlAsset = engine.avAsset {
-                ToolbarItem(placement: .primaryAction) {
-                    ShareLink(item: urlAsset.url)
+            .onChange(of: selectedItem) { newItem in
+                isLoading = true
+                Task {
+                    guard let localID = newItem?.itemIdentifier,
+                          let result = PHAsset.fetchAssets(withLocalIdentifiers: [localID], options: nil).firstObject
+                    else { return }
+                    try await engine.requestAVAsset(for: result)
+                    if let asset = engine.avAsset {
+                        try await engine.extractAudio(from: asset)
+                    }
+                    await MainActor.run {
+                        isLoading = false
+                    }
                 }
             }
-        }
-        .navigationTitle("Video filters")
+            .onAppear {
+                do {
+                    let audioSession = AVAudioSession.sharedInstance()
+                    try audioSession.setCategory(.playback, mode: .default)
+                    try audioSession.setActive(true)
+                } catch {
+                    print(error)
+                }
+            }
+            .toolbar {
+                if let urlAsset = engine.avAsset {
+                    ToolbarItem(placement: .primaryAction) {
+                        ShareLink(item: urlAsset.url)
+                    }
+                }
+            }
+            .navigationTitle("Video filters")
     }
 }
 
