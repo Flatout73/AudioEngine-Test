@@ -12,7 +12,7 @@
 		7171347428F310320006C3E8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7171347328F310320006C3E8 /* Assets.xcassets */; };
 		7171347728F310320006C3E8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7171347628F310320006C3E8 /* Preview Assets.xcassets */; };
 		7171347E28F3105B0006C3E8 /* SimpleAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7171347D28F3105B0006C3E8 /* SimpleAudioEngine.swift */; };
-		7171348028F3133B0006C3E8 /* Voice.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7171347F28F3133A0006C3E8 /* Voice.m4a */; };
+		7171348328F45F280006C3E8 /* TestVideo.mov in Resources */ = {isa = PBXBuildFile; fileRef = 7171348228F45F280006C3E8 /* TestVideo.mov */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,7 +22,7 @@
 		7171347328F310320006C3E8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7171347628F310320006C3E8 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		7171347D28F3105B0006C3E8 /* SimpleAudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleAudioEngine.swift; sourceTree = "<group>"; };
-		7171347F28F3133A0006C3E8 /* Voice.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = Voice.m4a; sourceTree = "<group>"; };
+		7171348228F45F280006C3E8 /* TestVideo.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = TestVideo.mov; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,7 +39,7 @@
 		7171346328F310300006C3E8 = {
 			isa = PBXGroup;
 			children = (
-				7171347F28F3133A0006C3E8 /* Voice.m4a */,
+				7171348228F45F280006C3E8 /* TestVideo.mov */,
 				7171346E28F310300006C3E8 /* AudioEngingeTest */,
 				7171346D28F310300006C3E8 /* Products */,
 			);
@@ -132,8 +132,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				7171347728F310320006C3E8 /* Preview Assets.xcassets in Resources */,
+				7171348328F45F280006C3E8 /* TestVideo.mov in Resources */,
 				7171347428F310320006C3E8 /* Assets.xcassets in Resources */,
-				7171348028F3133B0006C3E8 /* Voice.m4a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

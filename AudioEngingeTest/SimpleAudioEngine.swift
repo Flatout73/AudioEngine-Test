@@ -40,6 +40,13 @@ class SimpleAudioEngine: ObservableObject {
         engine.connect(audioPlayer, to: speedControl, format: nil)
         engine.connect(speedControl, to: pitchControl, format: nil)
         engine.connect(pitchControl, to: engine.mainMixerNode, format: nil)
+
+        #if DEBUG
+        self.avAsset = AVURLAsset(url: Bundle.main.url(forResource: "TestVideo", withExtension: "mov")!)
+        Task {
+            try await extractAudio(from: avAsset!)
+        }
+        #endif
     }
 
     func saveFilter1Sound() async throws -> URL {

@@ -22,51 +22,53 @@ struct ContentView: View {
     @ViewBuilder
     var main: some View {
         ZStack {
-            VStack(spacing: 32) {
-                if let avAsset = engine.avAsset {
-                    VideoPlayer(player: AVPlayer(playerItem: AVPlayerItem(asset: avAsset)))
-                        .frame(height: 400)
-                }
-
-                PhotosPicker(
-                    selection: $selectedItem,
-                    matching: .videos,
-                    photoLibrary: .shared()) {
-                        Text("Select a video")
+            ScrollView {
+                VStack(spacing: 32) {
+                    if let avAsset = engine.avAsset {
+                        VideoPlayer(player: AVPlayer(playerItem: AVPlayerItem(asset: avAsset)))
+                            .frame(height: 400)
                     }
-
-                if let urlAsset = engine.avAsset {
-                    VStack(spacing: 16) {
-                        Button("Child filter") {
-                            isLoading = true
-                            Task {
-                                let filteredAudio = try await engine.saveFilter1Sound()
-                                try await engine.replaceAudioFromVideo(urlAsset.url,
-                                                                       with: AVURLAsset(url: filteredAudio))
-                                await MainActor.run {
-                                    isLoading = false
+                    
+                    PhotosPicker(
+                        selection: $selectedItem,
+                        matching: .videos,
+                        photoLibrary: .shared()) {
+                            Text("Select a video")
+                        }
+                    
+                    if let urlAsset = engine.avAsset {
+                        VStack(spacing: 16) {
+                            Button("Child filter") {
+                                isLoading = true
+                                Task {
+                                    let filteredAudio = try await engine.saveFilter1Sound()
+                                    try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                           with: AVURLAsset(url: filteredAudio))
+                                    await MainActor.run {
+                                        isLoading = false
+                                    }
                                 }
                             }
-                        }
-                        Button("Man filter") {
-                            isLoading = true
-                            Task {
-                                let filteredAudio = try await engine.saveFilter2Sound()
-                                try await engine.replaceAudioFromVideo(urlAsset.url,
-                                                                       with: AVURLAsset(url: filteredAudio))
-                                await MainActor.run {
-                                    isLoading = false
+                            Button("Man filter") {
+                                isLoading = true
+                                Task {
+                                    let filteredAudio = try await engine.saveFilter2Sound()
+                                    try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                           with: AVURLAsset(url: filteredAudio))
+                                    await MainActor.run {
+                                        isLoading = false
+                                    }
                                 }
                             }
-                        }
-                        Button("Alien filter") {
-                            isLoading = true
-                            Task {
-                                let filteredAudio = try await engine.saveFilter3Sound()
-                                try await engine.replaceAudioFromVideo(urlAsset.url,
-                                                                       with: AVURLAsset(url: filteredAudio))
-                                await MainActor.run {
-                                    isLoading = false
+                            Button("Alien filter") {
+                                isLoading = true
+                                Task {
+                                    let filteredAudio = try await engine.saveFilter3Sound()
+                                    try await engine.replaceAudioFromVideo(urlAsset.url,
+                                                                           with: AVURLAsset(url: filteredAudio))
+                                    await MainActor.run {
+                                        isLoading = false
+                                    }
                                 }
                             }
                         }
